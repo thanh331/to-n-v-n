@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Secure File Transfer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-r from-blue-100 via-white to-green-100 min-h-screen flex items-center justify-center py-10">
+  <div class="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-4xl">
+    <h2 class="text-3xl font-bold mb-6 text-center text-blue-700">Secure File Transfer with SHA-256 Integrity Check</h2>
+
+    <div id="login-section" class="mb-8">
+      <h3 class="text-xl font-semibold text-gray-700 mb-4">Login</h3>
+      <form id="login-form" class="space-y-4">
+        <input type="text" name="username" placeholder="Username" required class="w-full border border-gray-300 rounded px-3 py-2" />
+        <input type="password" name="password" placeholder="Password" required class="w-full border border-gray-300 rounded px-3 py-2" />
+        <button type="submit" class="w-full bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700">Login</button>
+      </form>
+      <div id="login-result" class="mt-4 text-center text-lg font-semibold"></div>
+    </div>
+
+    <div id="main-section" class="grid grid-cols-1 md:grid-cols-2 gap-8 hidden">
+      <div class="md:col-span-2 flex justify-between items-center mb-6">
+        <h3 class="text-xl font-semibold text-gray-700" id="welcome-message"></h3>
+        <button id="logout-button" class="bg-red-500 text-white py-1 px-3 rounded hover:bg-red-600 text-sm">Đăng xuất</button>
+      </div>
+
+      <div>
+        <h3 class="text-xl font-semibold text-gray-700 mb-4">Upload a File</h3>
+        <form id="upload-form" enctype="multipart/form-data" class="space-y-4">
+          <input type="file" name="file" required class="w-full border border-gray-300 rounded px-3 py-2" />
+          <input type="text" name="recipient" placeholder="Recipient Username" required class="w-full border border-gray-300 rounded px-3 py-2" />
+          <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">Upload</button>
+        </form>
+        <div id="result" class="mt-4 text-center text-lg font-semibold"></div>
+      </div>
+
+      <div>
+        <h3 class="text-xl font-semibold text-gray-700 mb-4">Available Files</h3>
+        <ul id="file-list" class="space-y-2 overflow-y-auto max-h-64 border border-gray-200 p-2 rounded">
+          </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Hàm tải và hiển thị danh sách file
+    async function loadFiles() {
+      try {
+        const res = await fetch('/files'); // Gọi API Flask để lấy danh sách file
+        const files = await res.json();
+        const fileList = document.getElementById('file-list');
+        fileList.innerHTML = ''; // Xóa danh sách cũ
+
+        if (files && files.length > 0) {
+            files.forEach(file => {
+                const li = document.createElement('li');
+                li.innerHTML = `<a href="/download/${file}" class="text-blue-600 hover:underline">${file}</a>`;
+                fileList.appendChild(li);
+            });
+        } else {
+            const li = document.createElement('li');
+            li.textContent = "No files available."; // Thông báo nếu không có file
+            fileList.appendChild(li);
+        }
+      } catch (err) {
+        console.error('Error loading files:', err);
+        const fileList = document.getElementById('file-list');
+        fileList.innerHTML = '<li>Error loading files. Please try again.</li>';
+      }
+    }
+
+    const loginForm = document.getElementById('login-form');
+    const loginResult = document.getElementById('login-result');
+    const loginSection = document.getElementById('login-section');
+    const mainSection = document.getElementById('main-section');
+    const welcomeMessage = document.getElementById('welcome-message');
+    const logoutButton = document.getElementById('logout-button');
+
+    // Xử lý sự kiện submit của form đăng nhập
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault(); // Ngăn chặn hành vi submit mặc định của form
+      const formData = new FormData(loginForm); // Lấy dữ liệu từ form
+      const username = formData.get('username'); // Lấy username để hiển thị
+      const res = await fetch('/login', {
+        method: 'POST',
+        body: formData
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        loginResult.textContent = 'Login successful';
+        loginResult.className = 'mt-4 text-center text-green-600';
+        loginSection.classList.add('hidden'); // Ẩn phần đăng nhập
+        mainSection.classList.remove('hidden'); // Hiện phần chính
+        welcomeMessage.textContent = `Welcome, ${username}!`; // Hiển thị tên người dùng
+        loadFiles(); // Tải danh sách file sau khi đăng nhập thành công
+      } else {
+        loginResult.textContent = data.message || 'Login failed';
+        loginResult.className = 'mt-4 text-center text-red-600';
+      }
+    });
+
+    // Xử lý sự kiện click của nút đăng xuất
+    logoutButton.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/logout', {
+          method: 'POST'
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          alert(data.message); // Hiển thị thông báo đăng xuất
+          mainSection.classList.add('hidden'); // Ẩn phần chính
+          loginSection.classList.remove('hidden'); // Hiện lại phần đăng nhập
+          loginResult.textContent = ''; // Xóa kết quả đăng nhập cũ
+          loginForm.reset(); // Reset form đăng nhập
+          welcomeMessage.textContent = ''; // Xóa thông báo chào mừng
+        } else {
+          alert('Logout failed: ' + (data.message || 'Unknown error'));
+        }
+      } catch (error) {
+        console.error('Error during logout:', error);
+        alert('An error occurred during logout.');
+      }
+    });
+
+    const uploadForm = document.getElementById('upload-form');
+    const result = document.getElementById('result');
+
+    // Xử lý sự kiện submit của form tải lên
+    uploadForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(uploadForm);
+      result.textContent = 'Uploading...';
+      result.className = 'mt-4 text-center text-gray-600';
+
+      try {
+        const res = await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+
+        if (data.status) {
+          result.textContent = data.status;
+          result.className = `mt-4 text-center text-lg font-semibold ${data.status.includes('OK') ? 'text-green-600' : 'text-red-600'}`;
+          loadFiles(); // Tải lại danh sách file sau khi tải lên thành công
+        } else {
+          result.textContent = data.error || 'Upload failed.';
+          result.className = 'mt-4 text-center text-red-600';
+        }
+      } catch (err) {
+        result.textContent = 'Error occurred during upload.';
+        result.className = 'mt-4 text-center text-red-600';
+        console.error('Upload error:', err);
+      }
+    });
+  </script>
+</body>
+</html>
