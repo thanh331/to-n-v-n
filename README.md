@@ -1,5 +1,5 @@
 <h1>Bảo mật và toàn vẹn</h1>
-<img src="" alt="Đăng nhập để tiếp tục">
+<img src="screenshot_1749477505.png" alt="Đăng nhập để tiếp tục">
 <p>🔐 Chức năng 1: Xác thực người dùng
 Giao diện web có form đăng nhập.
 
